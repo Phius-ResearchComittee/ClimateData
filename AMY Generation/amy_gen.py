@@ -1,27 +1,33 @@
 import diyepw
+import os
+from pathlib import Path
 from urllib.error import HTTPError
 from datetime import datetime
 
-
 def generate_epw(wmo_number, year, folder_path):
+    # Ensure folder exists
+    output_dir = Path(folder_path)
+    if not output_dir.exists():
+        try:
+            output_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
+            print(f"Error creating directory: {e}")
+            return False
+
     try:
         wmo_int = int(wmo_number)
-    except ValueError:
-        print(f"Invalid WMO number: {wmo_number}")
-        return False
-
-    try:
         year_int = int(year)
     except ValueError:
-        print(f"Invalid year: {year}")
+        print("Invalid WMO or Year format.")
         return False
 
     current_year = datetime.now().year
     if not (1800 <= year_int <= current_year):
-        print(f"Year {year_int} out of expected range (1800-{current_year}).")
+        print(f"Year {year_int} is out of range.")
         return False
 
     try:
+        # diyepw handles the download and transformation
         diyepw.create_amy_epw_files_for_years_and_wmos(
             [year_int],
             [wmo_int],
@@ -29,42 +35,27 @@ def generate_epw(wmo_number, year, folder_path):
             max_records_to_impute=50,
             max_missing_amy_rows=50,
             allow_downloads=True,
-            amy_epw_dir=str(folder_path),
+            amy_epw_dir=str(output_dir),
         )
+        return True
     except HTTPError as e:
-        print(f"Network Error: Unable to download data from NOAA ({getattr(e,'code', 'N/A')})")
-        print(f"URL: {getattr(e,'filename', 'N/A')}")
-        print("This could mean:")
-        print("  1. The NOAA server is temporarily unavailable")
-        print("  2. The data for this WMO/year combination doesn't exist")
-        print("  3. Your internet connection may be blocked by a firewall")
+        print(f"Network Error: NOAA data likely unavailable for WMO {wmo_int} in {year_int}.")
         return False
     except Exception as e:
-        print(f"Error generating EPW: {e}")
+        print(f"Unexpected error: {e}")
         return False
 
-    return True
-
-
-# Beginning of the program
-
-folder_path = input("Type in the folder path to save the EPW file: ")
+# Main Execution
+folder_input = input("Enter output folder path: ").strip()
 
 while True:
-    # try:
-    wmo_number = input("Type in WMO Number (or 'exit' to quit): ")
-    if wmo_number.lower() == 'exit':
+    wmo_input = input("\nEnter WMO Number (or 'exit'): ").strip()
+    if wmo_input.lower() == 'exit':
         break
-
-    year = input("Type in the year for the AMY EPW file: ")
-    success = generate_epw(wmo_number, year, folder_path)
-    if success:
-        print(f"AMY EPW file generated successfully for WMO number {wmo_number} and year {year}.")
+    
+    year_input = input("Enter Year: ").strip()
+    
+    if generate_epw(wmo_input, year_input, folder_input):
+        print(f"--- Success! Check {folder_input} for your file. ---")
     else:
-        print(f"Failed to generate AMY EPW for WMO {wmo_number} year {year}.")
-    
-    
-    
-    # except ValueError:
-    #     print("Invalid input. Please enter a valid WMO number or 'exit' to quit.")
-    #     continue
+        print(f"--- Generation failed for {wmo_input}. ---")
