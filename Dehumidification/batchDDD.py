@@ -4,10 +4,10 @@ import pandas as pd
 import psychrolib
 import os
 import json
-import PySimpleGUI as sg
+import PySimpleGUI4 as sg
 
 sg.theme('BrightColors')
-layout = [[sg.Text('Study Folder:', size =(25, 1)),sg.InputText('C:/Users/amitc_crl/OneDrive/Documents/GitHub/ClimateData/Dehumidification/IL', key='studyFolder'), sg.FolderBrowse()],      
+layout = [[sg.Text('Study Folder:', size =(25, 1)),sg.InputText('D:\Phius Dropbox\PHIUS Shared\Certification\Climate Data\Static - CD\PHIJP', key='studyFolder'), sg.FolderBrowse()],      
           [sg.Button('Calculate'), sg.Exit()]]      
 
 window = sg.Window('Dehumidification Degree Day Calculator v23.1.1', layout)      
@@ -32,7 +32,9 @@ while True:                             # The Event Loop
             weatherFile = str(file)
 
             data = pd.read_excel(str(weatherFile))
-            location = data['Passive House Planning'].values[4]
+            # location = data['Passive House Planning'].values[4]
+            location = data['PHIUS+ Certification'].values[4]
+            print(location)
             altitude = data['Unnamed: 7'].values[19]
             # altitude = 0
             atmPressure = psychrolib.GetStandardAtmPressure(altitude)
