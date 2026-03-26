@@ -1,0 +1,8 @@
+# PyInstaller generated folders and files
+build/
+dist/
+*.spec
+*.exe
+
+
+*.csv
