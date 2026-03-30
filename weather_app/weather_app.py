@@ -4,7 +4,9 @@ import pandas as pd
 from datetime import datetime
 import tkinter as tk
 from tkinter import filedialog
-
+import sys
+from contextlib import redirect_stdout, redirect_stderr
+import logging
 # Textual imports for the Terminal UI
 from textual.app import App, ComposeResult
 from textual.screen import ModalScreen
@@ -261,15 +263,27 @@ class WeatherPipelineApp(App):
                 for wmo in wmo_list:
                     try:
                         write_log(f"Fetching WMO {wmo} for Year {year}...")
-                        diyepw.create_amy_epw_files_for_years_and_wmos(
-                            [year], [wmo],
-                            max_records_to_interpolate=10,
-                            max_missing_amy_rows=300,
-                            allow_downloads=True,
-                            amy_epw_dir=temp_epw_dir
-                        )
+                        
+                        # --- NEW: Silence BOTH print statements AND the logging module ---
+                        logging.disable(logging.CRITICAL) # Mutes the logger
+                        
+                        with open(os.devnull, 'w') as fnull:
+                            with redirect_stdout(fnull), redirect_stderr(fnull):
+                                diyepw.create_amy_epw_files_for_years_and_wmos(
+                                    [year], [wmo],
+                                    max_records_to_interpolate=10,
+                                    max_missing_amy_rows=300,
+                                    allow_downloads=True,
+                                    amy_epw_dir=temp_epw_dir
+                                )
+                                
+                        logging.disable(logging.NOTSET) # Turns the logger back on
+                        # ----------------------------------------------------------------
+                                
                         write_log(f"[green]  -> Downloaded: WMO {wmo}, Year {year}[/]")
                     except Exception as e:
+                        # Make sure to re-enable logging even if it crashes
+                        logging.disable(logging.NOTSET)
                         write_log(f"[red]  -> Skipped/Error: WMO {wmo}, Year {year} -> {e}[/]")
                     
                     self.call_from_thread(progress_bar.advance, 1)
