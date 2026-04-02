@@ -7,16 +7,42 @@ from tkinter import filedialog
 import sys
 from contextlib import redirect_stdout, redirect_stderr
 import logging
+
 # Textual imports for the Terminal UI
 from textual.app import App, ComposeResult
 from textual.screen import ModalScreen
-from textual.widgets import Header, Footer, Input, Button, RichLog, ProgressBar, DataTable, TabbedContent, TabPane, Static
-from textual.containers import Vertical, Horizontal
+from textual.widgets import Header, Footer, Input, Button, RichLog, ProgressBar, TabbedContent, TabPane, Static, Label, Markdown
+from textual.containers import Vertical, Horizontal, VerticalScroll
 from textual import work
 
 # Data processing imports
 import diyepw
 from pythermalcomfort.models import heat_index_rothfusz
+
+# =========================================================
+# ReadMe Text Definition
+# =========================================================
+README_TEXT = """
+# Phius Resilience Weather Generator v26.1.0
+
+### Notes
+
+This tool has been developed by Phius to generate weather data to be used in thermal resilience simulation. It searches through the historical record available in the NOAA ISD, from 1970 to present, and generates a data frame of the entire historical record. Then, it will search for user defined nth-year return temperatures for summer and winter, filtering for weeks where the peak temperature is +- 0.5°C from the input temperature. The tie breaking element in winter is to identify a week with the lowest average global horizontal radiation; for summer it is the highest average heat index. These weeks are then merged into a user input EPW weather file that can be used in simulation.
+
+**1.** Input the **WMO number** of the weather station for which you are trying to generate weather data.
+
+**2.** Input a **start and stop year** for the historical record to be read. Input only years between 1970 and the previous year to present. (i.e., you cannot select weather data to stop in 2025 if you are using this tool in 2025, only 1970-2024).
+
+**3.** Input the target **return temperature in °C**. This data can be found in the ASHRAE Handbook.
+
+**4.** Input a path for the **base EPW file** to be modified. The extreme design weeks identified will be injected into this file.
+
+**5.** Input the **output path and name** for the resulting weather file.
+
+**6.** Click **Generate Weather Data** to start the calculation. The calculation progress can be viewed in the second tab *Logs & Progress*.
+
+**7.** After completion, the start dates of the identified extreme weeks will be shown. Write these down or screenshot them, and use this as the outage periods in thermal resilience simulations.
+"""
 
 # =========================================================
 # Pop-up Modal Screen for Final Results
@@ -67,15 +93,25 @@ class ResultsModal(ModalScreen):
 class WeatherPipelineApp(App):
     """A Textual App to handle EPW Generation and Processing seamlessly."""
 
-    TITLE = "DIYEPW Advanced Pipeline"
+    TITLE = "Phius Resilience Weather Generator"
     
     CSS = """
+    .readme-container {
+        padding: 1 2;
+    }
+    .input-label {
+        text-style: bold;
+        color: $secondary;
+        margin-top: 1;    
+        margin-bottom: 0; 
+        margin-left: 1;
+    }
     Input {
-        margin-bottom: 1;
+        margin-bottom: 0; 
     }
     #run-button {
         width: 100%;
-        margin-top: 1;
+        margin-top: 2;    
         margin-bottom: 1;
     }
     RichLog {
@@ -84,29 +120,27 @@ class WeatherPipelineApp(App):
         background: $surface-darken-1;
     }
     .input-row {
-        height: auto;
+        height: auto;     
     }
-    #start_year, #end_year, #winter_temp, #summer_temp {
-        width: 50%;
+    .col {
+        width: 1fr;
+        height: auto;     
+        padding-right: 1;
     }
     .file-browse-row {
         height: auto;
-        margin-bottom: 1;
+        margin-bottom: 0;
     }
-    #tmy_file {
+    #tmy_file, #output_epw {
         width: 1fr;
         margin-bottom: 0;
     }
-    #browse-button {
+    #browse-button, #browse-save-button {
         width: 15;
         margin-left: 1;
     }
     #progress-bar {
         margin-bottom: 1;
-    }
-    #data-table {
-        height: 1fr;
-        border: solid blue;
     }
     """
 
@@ -117,47 +151,64 @@ class WeatherPipelineApp(App):
     def compose(self) -> ComposeResult:
         yield Header()
         
-        with TabbedContent(initial="tab-setup", id="tabs"):
+        with TabbedContent(initial="tab-readme", id="tabs"):
             
+            with TabPane("0. ReadMe", id="tab-readme"):
+                with VerticalScroll(classes="readme-container"):
+                    yield Markdown(README_TEXT)
+
             with TabPane("1. Setup & Run", id="tab-setup"):
-                with Vertical():
-                    yield Input(id="wmo", placeholder="WMO Station IDs (comma separated)", value="744860")
+                with VerticalScroll():
+                    # Target WMO Row
+                    yield Label("Target WMO Station ID(s) [Comma Separated]", classes="input-label")
+                    yield Input(id="wmo", placeholder="e.g., 744860", value="")
                     
+                    # Target Years Row
                     with Horizontal(classes="input-row"):
-                        yield Input(id="start_year", placeholder="Start Year", value="1970", type="integer")
-                        yield Input(id="end_year", placeholder="End Year", value="2025", type="integer")
+                        with Vertical(classes="col"):
+                            yield Label("Start Year", classes="input-label")
+                            yield Input(id="start_year", placeholder="e.g., 1970", value="", type="integer")
+                        with Vertical(classes="col"):
+                            yield Label("End Year", classes="input-label")
+                            yield Input(id="end_year", placeholder="e.g., 2024", value="", type="integer")
                     
+                    # Target Temperatures Row
                     with Horizontal(classes="input-row"):
-                        yield Input(id="winter_temp", placeholder="Winter Return Temp (°C)", value="20.0", type="number")
-                        yield Input(id="summer_temp", placeholder="Summer Return Temp (°C)", value="24.0", type="number")
+                        with Vertical(classes="col"):
+                            yield Label("Winter Return Temp (°C)", classes="input-label")
+                            yield Input(id="winter_temp", placeholder="e.g., 20.0", value="", type="number")
+                        with Vertical(classes="col"):
+                            yield Label("Summer Return Temp (°C)", classes="input-label")
+                            yield Input(id="summer_temp", placeholder="e.g., 24.0", value="", type="number")
                     
-                    # File Browser Row
+                    # File Browser Row (Input Base TMY)
+                    yield Label("Base TMY File to modify (.epw)", classes="input-label")
                     with Horizontal(classes="file-browse-row"):
-                        yield Input(id="tmy_file", placeholder="Path to Base TMY File (.epw)", value="")
+                        yield Input(id="tmy_file", placeholder="Path to Base TMY File...", value="")
                         yield Button("Browse...", id="browse-button", variant="primary")
 
-                    yield Input(id="output_epw", placeholder="Output Hybrid EPW Path", value="Hybrid_Weather.epw")
+                    # File Browser Row (Output Save Path)
+                    yield Label("Save Final Output EPW As", classes="input-label")
+                    with Horizontal(classes="file-browse-row"):
+                        yield Input(id="output_epw", placeholder="e.g., Output", value="")
+                        yield Button("Save As...", id="browse-save-button", variant="primary")
                         
-                    yield Button("Run Pipeline", id="run-button", variant="success")
+                    yield Button("Generate Weather Data", id="run-button", variant="success")
             
             with TabPane("2. Logs & Progress", id="tab-logs"):
                 with Vertical():
                     yield ProgressBar(id="progress-bar", show_eta=True)
                     yield RichLog(id="log-view", markup=True)
-            
-            with TabPane("3. Results Preview", id="tab-preview"):
-                yield DataTable(id="data-table")
                 
         yield Footer()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         
-        # Handle the Browse Button
+        # Handle the Input File Browse Button
         if event.button.id == "browse-button":
-            # Initialize hidden tkinter root
             root = tk.Tk()
             root.withdraw()
-            root.attributes('-topmost', True) # Force dialog to front
+            root.attributes('-topmost', True) 
             
             file_path = filedialog.askopenfilename(
                 title="Select Base TMY File",
@@ -169,12 +220,42 @@ class WeatherPipelineApp(App):
                 self.query_one("#tmy_file", Input).value = file_path
             return
 
+        # Handle the Output File Save Browse Button
+        if event.button.id == "browse-save-button":
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes('-topmost', True) 
+            
+            file_path = filedialog.asksaveasfilename(
+                title="Save Hybrid EPW File As",
+                defaultextension=".epw",
+                initialfile="Hybrid_Weather.epw",
+                filetypes=[("EPW Weather Files", "*.epw"), ("All Files", "*.*")]
+            )
+            root.destroy()
+            
+            if file_path:
+                self.query_one("#output_epw", Input).value = file_path
+            return
+
         # Handle the Run Button
         if event.button.id == "run-button":
             wmo_str = self.query_one("#wmo", Input).value
             try:
                 start_year = int(self.query_one("#start_year", Input).value)
                 end_year = int(self.query_one("#end_year", Input).value)
+                
+                # --- NEW LOGIC: Validation for Years ---
+                if start_year < 1970:
+                    self.query_one("#tabs", TabbedContent).active = "tab-logs"
+                    self.query_one("#log-view", RichLog).write("[bold red]Error: Start Year must be 1970 or later. NOAA ISD data is not available before 1970.[/]")
+                    return
+                if start_year > end_year:
+                    self.query_one("#tabs", TabbedContent).active = "tab-logs"
+                    self.query_one("#log-view", RichLog).write("[bold red]Error: Start Year cannot be after End Year.[/]")
+                    return
+                # ---------------------------------------
+
                 wmo_list = [int(x.strip()) for x in wmo_str.split(",")]
                 years = list(range(start_year, end_year + 1))
                 winter_temp = float(self.query_one("#winter_temp", Input).value)
@@ -195,13 +276,6 @@ class WeatherPipelineApp(App):
             self.query_one("#run-button", Button).disabled = True
             self.query_one("#tabs", TabbedContent).active = "tab-logs"
             self.set_timer(0.1, lambda: self.run_pipeline(wmo_list, years, winter_temp, summer_temp, tmy_file, output_epw))
-
-    def update_table(self, df):
-        table = self.query_one("#data-table", DataTable)
-        table.clear(columns=True)
-        table.add_columns(*df.columns.tolist())
-        rows = df.head(20).astype(str).values.tolist()
-        table.add_rows(rows)
 
     def show_modal(self, message: str):
         self.push_screen(ResultsModal(message))
@@ -264,8 +338,8 @@ class WeatherPipelineApp(App):
                     try:
                         write_log(f"Fetching WMO {wmo} for Year {year}...")
                         
-                        # --- NEW: Silence BOTH print statements AND the logging module ---
-                        logging.disable(logging.CRITICAL) # Mutes the logger
+                        # Silence BOTH print statements AND the logging module
+                        logging.disable(logging.CRITICAL) 
                         
                         with open(os.devnull, 'w') as fnull:
                             with redirect_stdout(fnull), redirect_stderr(fnull):
@@ -277,12 +351,10 @@ class WeatherPipelineApp(App):
                                     amy_epw_dir=temp_epw_dir
                                 )
                                 
-                        logging.disable(logging.NOTSET) # Turns the logger back on
-                        # ----------------------------------------------------------------
+                        logging.disable(logging.NOTSET) 
                                 
                         write_log(f"[green]  -> Downloaded: WMO {wmo}, Year {year}[/]")
                     except Exception as e:
-                        # Make sure to re-enable logging even if it crashes
                         logging.disable(logging.NOTSET)
                         write_log(f"[red]  -> Skipped/Error: WMO {wmo}, Year {year} -> {e}[/]")
                     
@@ -440,23 +512,8 @@ class WeatherPipelineApp(App):
                 write_log(f"[bold red]No dates found matching Summer Return Temp {summer_temp}°C (±0.5).[/]")
                 modal_message += f"[bold red]Summer Summary[/]\nNo dates found matching {summer_temp}°C.\n\n"
 
-            # # ---------------------------------------------------------
-            # # Step 5: Save the Rolling Averages DataFrame to local `tmp`
-            # # ---------------------------------------------------------
-            # write_log("\n[bold yellow]--- Step 5: Saving Rolling Averages ---[/]")
-            
-            # # Create a local 'tmp' directory in the current working folder
-            # local_tmp_dir = os.path.join(os.getcwd(), "tmp")
-            # os.makedirs(local_tmp_dir, exist_ok=True)
-            
-            # rolling_csv_path = os.path.join(local_tmp_dir, "rolling_averages.csv")
-            # df.to_csv(rolling_csv_path, index=False)
-            
-            # write_log(f"[bold green]Rolling Averages saved to:\n{rolling_csv_path}[/]")
-            # modal_message += f"[bold green]Rolling Averages Output[/]\nSaved to: {rolling_csv_path}\n\n"
-
             # ---------------------------------------------------------
-            # Step 6: Generate Hybrid EPW
+            # Step 5: Generate Hybrid EPW
             # ---------------------------------------------------------
             if target_winter_date and target_summer_date:
                 write_log("\n[bold yellow]--- Step 5: Constructing Hybrid EPW ---[/]")
@@ -517,9 +574,7 @@ class WeatherPipelineApp(App):
         # ---------------------------------------------------------
         self.final_df = df
         
-        self.call_from_thread(self.update_table, df) 
         self.call_from_thread(lambda: setattr(self.query_one("#run-button", Button), "disabled", False))
-        
         self.call_from_thread(self.show_modal, modal_message)
 
 if __name__ == "__main__":
