@@ -20,6 +20,8 @@ If you want to run the Python script directly or build your own executable, foll
 ### Prerequisites
 * Python 3.9 or higher
 * Git
+* 
+## Getting Started (For Developers)
 
 ### 1. Clone the Repository
 ```
@@ -27,7 +29,6 @@ git clone [https://github.com/Phius-ResearchComittee/ClimateData.git](https://gi
 cd ClimateData/weather_app
 ```
 
-## Getting Started (For Developers)
 2. Install Dependencies
 It is recommended to use a virtual environment. Install the required packages using pip:
 ```
