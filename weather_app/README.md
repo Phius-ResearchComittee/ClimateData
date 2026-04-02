@@ -21,8 +21,7 @@ If you want to run the Python script directly or build your own executable, foll
 * Python 3.9 or higher
 * Git
   
-## Getting Started (For Developers)
-
+## Getting Started
  1. Clone the Repository
 ```
 git clone https://github.com/Phius-ResearchComittee/ClimateData.git
