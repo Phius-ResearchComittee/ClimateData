@@ -27,7 +27,7 @@ git clone [https://github.com/Phius-ResearchComittee/ClimateData.git](https://gi
 cd ClimateData/weather_app
 ```
 
-For developers
+## Getting Started (For Developers)
 2. Install Dependencies
 It is recommended to use a virtual environment. Install the required packages using pip:
 ```
