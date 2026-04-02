@@ -9,7 +9,7 @@ It searches for user-defined nth-year return temperatures for summer and winter,
 
 The easiest way to use the Phius Resilience Weather Generator is to download the standalone executable. You do not need to install Python.
 
-1. Go to the **[Releases](../../releases)** page on this GitHub repository.
+1. Go to the **[Releases](https://github.com/Phius-ResearchComittee/ClimateData/releases)** page on this GitHub repository.
 2. Download the latest `weather_app.exe` file.
 3. Double-click the `.exe` to launch the terminal UI. *(Note: Windows may show a "Windows protected your PC" warning since the publisher is unrecognized. Click "More info" -> "Run anyway").*
 
