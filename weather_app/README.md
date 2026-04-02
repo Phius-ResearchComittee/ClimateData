@@ -23,7 +23,7 @@ If you want to run the Python script directly or build your own executable, foll
 * 
 ## Getting Started (For Developers)
 
-### 1. Clone the Repository
+ 1. Clone the Repository
 ```
 git clone [https://github.com/Phius-ResearchComittee/ClimateData.git](https://github.com/Phius-ResearchComittee/ClimateData.git)
 cd ClimateData/weather_app
