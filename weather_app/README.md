@@ -1,5 +1,5 @@
 
-# Phius Resilience Weather Generator v26.1.0
+# Phius Resilience Weather Generator
 
 This tool has been developed by Phius to generate weather data to be used in thermal resilience simulation. It searches through the historical record available in the NOAA ISD (from 1970 to present) and generates a dataframe of the entire historical record. 
 
@@ -20,7 +20,7 @@ If you want to run the Python script directly or build your own executable, foll
 ### Prerequisites
 * Python 3.9 or higher
 * Git
-* 
+  
 ## Getting Started (For Developers)
 
  1. Clone the Repository
