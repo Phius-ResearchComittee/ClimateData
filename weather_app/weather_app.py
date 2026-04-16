@@ -29,7 +29,7 @@ README_TEXT = """
 
 This tool has been developed by Phius to generate weather data to be used in thermal resilience simulation. It searches through the historical record available in the NOAA ISD, from 1970 to present, and generates a data frame of the entire historical record. Then, it will search for user defined nth-year return temperatures for summer and winter, filtering for weeks where the peak temperature is +- 0.5°C from the input temperature. The tie breaking element in winter is to identify a week with the lowest average global horizontal radiation; for summer it is the highest average heat index. These weeks are then merged into a user input EPW weather file that can be used in simulation.
 
-**1.** Input the **WMO number** of the weather station for which you are trying to generate weather data.
+**1.** Input the **WMO number** of the weather station you are trying to generate weather data for.
 
 **2.** Input a **start and stop year** for the historical record to be read. Input only years between 1970 and the previous year to present. (i.e., you cannot select weather data to stop in 2025 if you are using this tool in 2025, only 1970-2024).
 
@@ -191,7 +191,7 @@ class WeatherPipelineApp(App):
                     yield Label("Save Final Output EPW As", classes="input-label")
                     with Horizontal(classes="file-browse-row"):
                         yield Input(id="output_epw", placeholder="e.g., Output", value="")
-                        yield Button("Save As...", id="browse-save-button", variant="primary")
+                        yield Button("Browse...", id="browse-save-button", variant="primary")
                         
                     yield Button("Generate Weather Data", id="run-button", variant="success")
             
@@ -245,7 +245,7 @@ class WeatherPipelineApp(App):
                 start_year = int(self.query_one("#start_year", Input).value)
                 end_year = int(self.query_one("#end_year", Input).value)
                 
-                # --- NEW LOGIC: Validation for Years ---
+                # Validation for Years
                 if start_year < 1970:
                     self.query_one("#tabs", TabbedContent).active = "tab-logs"
                     self.query_one("#log-view", RichLog).write("[bold red]Error: Start Year must be 1970 or later. NOAA ISD data is not available before 1970.[/]")
@@ -254,7 +254,6 @@ class WeatherPipelineApp(App):
                     self.query_one("#tabs", TabbedContent).active = "tab-logs"
                     self.query_one("#log-view", RichLog).write("[bold red]Error: Start Year cannot be after End Year.[/]")
                     return
-                # ---------------------------------------
 
                 wmo_list = [int(x.strip()) for x in wmo_str.split(",")]
                 years = list(range(start_year, end_year + 1))
@@ -522,7 +521,10 @@ class WeatherPipelineApp(App):
                         {'date': target_winter_date, 'amy_file': winter_amy_path, 'name': 'Winter Period'},
                         {'date': target_summer_date, 'amy_file': summer_amy_path, 'name': 'Summer Period'}
                     ]
-                    events.sort(key=lambda x: x['date'])
+                    
+                    # --- THE FIX: Sort strictly by calendar month and day, ignoring the historical year ---
+                    events.sort(key=lambda x: (x['date'].month, x['date'].day))
+                    # --------------------------------------------------------------------------------------
 
                     for event in events:
                         write_log(f"Extracting 168 hours for {event['name']}...")
